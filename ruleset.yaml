@@ -1,3 +1,4 @@
+
 # 远程资源下载强制直连不走代理，解决404
 download-detour: DIRECT
 
@@ -11,28 +12,16 @@ geox-url:
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
 rules:
-# ========== 1.内网网段（最高优先级） ==========
+# 内网优先匹配
 - IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 
-# ========== 2.手动补充国内IP段【防漏网】 ==========
-# 国内公共DNS、三大运营商、阿里云/腾讯云CDN常用段
-- IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
-- IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
-- IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,220.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
-
-# ========== 3.手动补充国内域名后缀【防漏网】 ==========
-# 国内顶级域名后缀，所有 .cn / .com.cn / .net.cn 全部直连
-- DOMAIN-SUFFIX,cn,DIRECT
-
-# ========== 4.内置geo库规则 ==========
+# 国内域名直连
 - GEOSITE,cn,DIRECT
+# 国内IP直连
 - GEOIP,CN,DIRECT
 
-# ========== 兜底，剩下全部走代理 ==========
+# 兜底，其余海外流量走代理
 - MATCH,PROXY
