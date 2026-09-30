@@ -1,5 +1,86 @@
-# 远程资源下载强制直连不走代理，解决404
 download-detour: DIRECT
+
+# ========== DNS 防泄漏 ==========
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "localhost.ptlogin2.qq.com"
+    - "time.*.com"
+    - "ntp.*.com"
+    - "+.market.xiaomi.com"
+
+  # 仅用于解析 DoH/DoT 域名，必须用 IP
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+
+  # 默认国内加密 DNS
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+
+  # 国外加密 DNS，走你的 fallback 组：先直连，失败切代理
+  fallback:
+    - https://1.1.1.1/dns-query#DIRECT_THEN_PROXY
+    - https://8.8.8.8/dns-query#DIRECT_THEN_PROXY
+
+  # 防 DNS 污染 / 防泄漏判断
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+    domain:
+      - "+.google.com"
+      - "+.facebook.com"
+      - "+.youtube.com"
+      - "+.twitter.com"
+      - "+.x.com"
+      - "+.telegram.org"
+      - "+.openai.com"
+      - "+.chatgpt.com"
+
+  # 域名分流 DNS
+  nameserver-policy:
+    "geosite:private":
+      - system
+    "geosite:cn":
+      - https://doh.pub/dns-query
+      - https://dns.alidns.com/dns-query
+    "geosite:geolocation-!cn":
+      - https://1.1.1.1/dns-query#DIRECT_THEN_PROXY
+      - https://8.8.8.8/dns-query#DIRECT_THEN_PROXY
+
+  # 解析代理节点域名，避免环路
+  proxy-server-nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+
+# ========== 可选：如果你用 TUN，强烈建议加这个，防 DNS 泄漏最稳 ==========
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack:
+    - any:53
+  auto-route: true
+  auto-detect-interface: true
+
+# 定义策略组：优先直连，5秒超时则切换代理
+proxy-groups:
+  - name: "DIRECT_THEN_PROXY"
+    type: fallback
+    url: "https://www.baidu.com/generate_204"
+    interval: 300
+    timeout: 5000
+    proxies:
+      - DIRECT
+      - PROXY
 
 # Geo数据库配置，使用fastly CDN
 geodata-mode: true
@@ -11,18 +92,26 @@ geox-url:
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
 rules:
-# 内网优先匹配
+# ========== 1.内网网段（最高优先级） ==========
 - IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 
-# 国内域名直连
+# ========== 2.手动补充国内IP段【防漏网】 ==========
+- IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
+- IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
+- IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
+- IP-CIDR,220.0.0.0/8,DIRECT,no-resolve
+- IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
+- IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
+
+# ========== 3.手动补充国内域名后缀【防漏网】 ==========
+- DOMAIN-SUFFIX,cn,DIRECT
+
+# ========== 4.内置geo库规则 ==========
 - GEOSITE,cn,DIRECT
-# 国内IP直连
 - GEOIP,CN,DIRECT
 
-# 兜底，其余海外流量走代理
-- MATCH,PROXY
-
-
+# ========== 剩下所有流量交给 fallback策略组：先直连，5秒失败切代理 ==========
+- MATCH,DIRECT_THEN_PROXY
