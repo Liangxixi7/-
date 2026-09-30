@@ -1,14 +1,14 @@
-# Geo数据库配置，替换官方源，开启自动更新
+# Geo数据库，使用ghfast.top镜像，代理下不会404
 geodata-mode: true
 geo-auto-update: true
 geo-update-interval: 24
 geox-url:
-  geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
-  geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
-  mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
+  geoip: "https://ghfast.top/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
+  geosite: "https://ghfast.top/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+  mmdb: "https://ghfast.top/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
 
 rules:
-# 内网保留，优先匹配
+# 内网优先匹配
 - IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
@@ -19,6 +19,6 @@ rules:
 # 国内IP直连
 - GEOIP,CN,DIRECT
 
-# 兜底，其余海外流量走代理
+# 兜底，海外流量走代理
 - MATCH,PROXY
 
