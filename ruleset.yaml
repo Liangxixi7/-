@@ -1,143 +1,55 @@
-# 远程资源下载强制直连不走代理，解决404
-download-detour: DIRECT
-
-# Geo数据库配置，使用fastly CDN
-geodata-mode: true
-geo-auto-update: true
-geo-update-interval: 24
-geox-url:
-  geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
-  geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
-  mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
-
-# ========== 远程规则集定义 ==========
-rule-providers:
-  # 广告、追踪域名，直接拒绝
-  reject:
-    type: http
-    behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
-    path: ./ruleset/reject.txt
-    interval: 86400
-  # 广告IP段
-  reject-ip:
-    type: http
-    behavior: ipcidr
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject-ip.txt"
-    path: ./ruleset/reject-ip.txt
-    interval: 86400
-  # 国内域名集合
-  direct:
-    type: http
-    behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
-    path: ./ruleset/direct.txt
-    interval: 86400
-  # 国内IP段集合
-  cncidr:
-    type: http
-    behavior: ipcidr
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
-    path: ./ruleset/cncidr.txt
-    interval: 86400
-  # 局域网IP段
-  lancidr:
-    type: http
-    behavior: ipcidr
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt"
-    path: ./ruleset/lancidr.txt
-    interval: 86400
-  # 苹果服务域名（国内直连）
-  apple-cn:
-    type: http
-    behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/apple-cn.txt"
-    path: ./ruleset/apple-cn.txt
-    interval: 86400
-  # 微软国内域名
-  microsoft-cn:
-    type: http
-    behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/microsoft-cn.txt"
-    path: ./ruleset/microsoft-cn.txt
-    interval: 86400
-  # Telegram IP段
-  telegramcidr:
-    type: http
-    behavior: ipcidr
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt"
-    path: ./ruleset/telegramcidr.txt
-    interval: 86400
-  # 需要走代理的海外域名集合
-  gfw:
-    type: http
-    behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt"
-    path: ./ruleset/gfw.txt
-    interval: 86400
-
-# ========== DNS 配置（严格参考文章最佳实践 Fake-IP 方案） ==========
 dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 0.0.0.0:53
   ipv6: false
   enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  respect-rules: true
-  # 国内域名解析使用国内DoH
-  nameserver:
-    - https://223.5.5.5/dns-query
-    - https://119.29.29.29/dns-query
-  # 海外域名 fallback 解析
-  fallback:
-    - https://8.8.8.8/dns-query
-    - https://1.1.1.1/dns-query
-  # Fake-IP过滤白名单：内网、系统推送域名使用real-ip，其余全部fake-ip
+  fake-ip-range: 172.19.0.1/16
   fake-ip-filter:
-    - "*.lan,real-ip"
-    - "*.local,real-ip"
-    - "*.home.arpa,real-ip"
-    - "msftncsi.com,real-ip"
-    - "*.msftncsi.com,real-ip"
-    - "+.*,fake-ip"
-  disable-system-hosts: true
-
-rules:
-# 1. 广告拦截，最高优先级
-- RULE-SET,reject,REJECT
-- RULE-SET,reject-ip,REJECT,no-resolve
-
-# 2. 局域网IP（全部带no-resolve，禁止预解析，防DNS泄露）
-- RULE-SET,lancidr,DIRECT,no-resolve
-- IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
-- IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
-
-# 3. 国内CDN、运营商IP段
-- IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
-- IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
-- IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,220.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
-
-# 4. 国内域名规则集
-- RULE-SET,direct,DIRECT
-- RULE-SET,apple-cn,DIRECT
-- RULE-SET,microsoft-cn,DIRECT
-- RULE-SET,cncidr,DIRECT,no-resolve
-
-# 5. Geo内置国内库兜底
-- GEOSITE,cn,DIRECT
-- GEOIP,CN,DIRECT
-
-# 6. Telegram 走代理
-- RULE-SET,telegramcidr,PROXY,no-resolve
-
-# 7. 海外域名列表走代理
-- RULE-SET,gfw,PROXY
-
-# 兜底，其余所有流量走PROXY策略组
-- MATCH,PROXY
+    - "+.lan"
+    - "+.local"
+    - "+.localhost"
+    - "+.home.arpa"
+    - "time.*.com"
+    - "time.*.gov"
+    - "pool.ntp.org"
+    - "+.push.apple.com"
+    - "mesu.apple.com"
+    - "swscan.apple.com"
+    - "captive.apple.com"
+    - "connectivitycheck.gstatic.com"
+    - "connectivitycheck.android.com"
+    - "www.msftconnecttest.com"
+    - "www.msftncsi.com"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  # 重点：仿照FlClash，按域名集合分配DNS，境外域名绝不查询国内DNS，防泄露
+  nameserver-policy:
+    "geosite:cn,geosite:private":
+      - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
+    "geolocation-!cn":
+      - https://cloudflare-dns.com/dns-query
+      - https://dns.google/dns-query
+  fallback:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    geosite:
+      - gfw
+    domain:
+      - "+.google.com"
+      - "+.googleapis.com"
+      - "+.googlevideo.com"
+      - "+.youtube.com"
+      - "+.github.com"
+      - "+.openai.com"
+      - "+.chatgpt.com"
+      - "+.anthropic.com"
+      - "+.claude.ai"
 
