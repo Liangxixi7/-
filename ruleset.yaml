@@ -76,6 +76,24 @@ rule-providers:
     path: ./ruleset/gfw.txt
     interval: 86400
 
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  respect-rules: true
+  nameserver:
+    - https://223.5.5.5/dns-query
+    - https://119.29.29.29/dns-query
+  fallback:
+    - https://8.8.8.8/dns-query
+    - https://1.1.1.1/dns-query
+  # 修复：旧内核fake-ip-filter语法，全部域名启用fake-ip
+  fake-ip-filter:
+    - "+.*,fake-ip"
+  disable-system-hosts: true
+
 rules:
 # 1. 广告拦截，最高优先级
 - RULE-SET,reject,REJECT
