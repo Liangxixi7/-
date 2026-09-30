@@ -1,30 +1,25 @@
-rule-providers:
-  cn-domain:
-    type: http
-    behavior: domain
-    format: text
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cn.txt"
-    path: ./ruleset/cn-domain.yaml
-    interval: 86400
-  cn-ip:
-    type: http
-    behavior: ipcidr
-    format: text
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
-    path: ./ruleset/cn-ip.yaml
-    interval: 86400
+# Geo数据库配置，替换官方地址，开启定期自动更新
+geodata-mode: true
+geo-auto-update: true
+geo-update-interval: 24
+geox-url:
+  geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+  geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+  mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
 rules:
-# 国内域名走直连
-- RULE-SET,cn-domain,DIRECT
-# 国内IP段走直连
-- RULE-SET,cn-ip,DIRECT
-
-# 内网保留
+# 局域网内网强制直连
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
 
-# 兜底，海外流量全部走代理
+# 国内域名库直连
+- GEOSITE,cn,DIRECT
+
+# 国内IP库直连
+- GEOIP,CN,DIRECT
+
+# 其余全部海外流量走代理
 - MATCH,PROXY
+
