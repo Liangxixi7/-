@@ -1,9 +1,30 @@
-# 国内域名
-- GEOSITE,cn,DIRECT
-# 国内IP
-- GEOIP,CN,DIRECT
-# 内网IP
+rule-providers:
+  cn-domain:
+    type: http
+    behavior: domain
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cn.txt"
+    path: ./ruleset/cn-domain.yaml
+    interval: 86400
+  cn-ip:
+    type: http
+    behavior: ipcidr
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
+    path: ./ruleset/cn-ip.yaml
+    interval: 86400
+
+rules:
+# 国内域名走直连
+- RULE-SET,cn-domain,DIRECT
+# 国内IP段走直连
+- RULE-SET,cn-ip,DIRECT
+
+# 内网保留
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+
+# 兜底，海外流量全部走代理
+- MATCH,PROXY
