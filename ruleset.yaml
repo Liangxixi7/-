@@ -1,4 +1,4 @@
-# Geo数据库配置，替换官方地址，开启定期自动更新
+# Geo数据库配置，替换官方源，开启自动更新
 geodata-mode: true
 geo-auto-update: true
 geo-update-interval: 24
@@ -8,18 +8,17 @@ geox-url:
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
 rules:
-# 局域网内网强制直连
-- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+# 内网保留，优先匹配
+- IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 
-# 国内域名库直连
+# 国内域名直连
 - GEOSITE,cn,DIRECT
-
-# 国内IP库直连
+# 国内IP直连
 - GEOIP,CN,DIRECT
 
-# 其余全部海外流量走代理
+# 兜底，其余海外流量走代理
 - MATCH,PROXY
 
