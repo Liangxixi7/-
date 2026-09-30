@@ -1,18 +1,7 @@
+# 远程资源下载强制直连不走代理，解决404
 download-detour: DIRECT
 
-proxy-groups:
-  - name: "PROXY"
-    type: select
-    proxies:
-      - DIRECT
-      - auto
-  - name: "auto"
-    type: url-test
-    url: "https://www.baidu.com/generate_204"
-    interval: 300
-    timeout: 3000
-    proxies: []
-
+# Geo数据库配置，使用fastly CDN
 geodata-mode: true
 geo-auto-update: true
 geo-update-interval: 24
@@ -21,31 +10,15 @@ geox-url:
   geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
-dns:
-  enable: true
-  listen: 0.0.0.0:1053
-  ipv6: false
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  respect-rules: true
-  nameserver:
-    - https://223.5.5.5/dns-query
-    - https://119.29.29.29/dns-query
-  fallback:
-    - https://8.8.8.8/dns-query
-    - https://1.1.1.1/dns-query
-  fake-ip-filter:
-    - "*"
-  disable-system-hosts: true
-
 rules:
-# 内网网段
+# ========== 1.内网网段（最高优先级） ==========
 - IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 
-# 补充国内运营商、CDN IP段，减少漏网
+# ========== 2.手动补充国内IP段【防漏网】 ==========
+# 国内公共DNS、三大运营商、阿里云/腾讯云CDN常用段
 - IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
 - IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
 - IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
@@ -53,10 +26,13 @@ rules:
 - IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
 
-# geosite国内域名库
+# ========== 3.手动补充国内域名后缀【防漏网】 ==========
+# 国内顶级域名后缀，所有 .cn / .com.cn / .net.cn 全部直连
+- DOMAIN-SUFFIX,cn,DIRECT
+
+# ========== 4.内置geo库规则 ==========
 - GEOSITE,cn,DIRECT
-# geo国内IP库
 - GEOIP,CN,DIRECT
 
-# 剩下全部海外流量走PROXY策略组
+# ========== 兜底，剩下全部走代理 ==========
 - MATCH,PROXY
