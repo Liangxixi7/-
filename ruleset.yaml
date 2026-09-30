@@ -1,9 +1,35 @@
-download-detour: DIRECT
+# ============================================================
+# Clash Meta 全局规则覆写文件
+# 不含节点、不含订阅，节点由用户自己的订阅提供
+# 策略组使用 include-all 自动包含所有节点
+# ============================================================
+
+# ========== 基础设置 ==========
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: warning
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+find-process-mode: strict
+global-client-fingerprint: chrome
+
+# ========== TUN（手机端核心） ==========
+tun:
+  enable: true
+  stack: system
+  dns-hijack:
+    - any:53
+    - tcp://any:53
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+  mtu: 8500
 
 # ========== DNS 防泄漏 ==========
 dns:
   enable: true
-  listen: 0.0.0.0:53
   ipv6: false
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
@@ -14,23 +40,21 @@ dns:
     - "time.*.com"
     - "ntp.*.com"
     - "+.market.xiaomi.com"
+    - "stun.*.*"
+    - "stun.*.*.*"
 
-  # 仅用于解析 DoH/DoT 域名，必须用 IP
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
 
-  # 默认国内加密 DNS
   nameserver:
     - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
 
-  # 国外加密 DNS，走你的 fallback 组：先直连，失败切代理
   fallback:
-    - https://1.1.1.1/dns-query#DIRECT_THEN_PROXY
-    - https://8.8.8.8/dns-query#DIRECT_THEN_PROXY
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
 
-  # 防 DNS 污染 / 防泄漏判断
   fallback-filter:
     geoip: true
     geoip-code: CN
@@ -45,8 +69,8 @@ dns:
       - "+.telegram.org"
       - "+.openai.com"
       - "+.chatgpt.com"
+      - "+.github.com"
 
-  # 域名分流 DNS
   nameserver-policy:
     "geosite:private":
       - system
@@ -54,35 +78,109 @@ dns:
       - https://doh.pub/dns-query
       - https://dns.alidns.com/dns-query
     "geosite:geolocation-!cn":
-      - https://1.1.1.1/dns-query#DIRECT_THEN_PROXY
-      - https://8.8.8.8/dns-query#DIRECT_THEN_PROXY
+      - https://1.1.1.1/dns-query
+      - https://8.8.8.8/dns-query
 
-  # 解析代理节点域名，避免环路
   proxy-server-nameserver:
     - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
 
-# ========== 可选：如果你用 TUN，强烈建议加这个，防 DNS 泄漏最稳 ==========
-tun:
-  enable: true
-  stack: mixed
-  dns-hijack:
-    - any:53
-  auto-route: true
-  auto-detect-interface: true
-
-# 定义策略组：优先直连，5秒超时则切换代理
+# ========== 策略组（自动包含所有节点） ==========
 proxy-groups:
-  - name: "DIRECT_THEN_PROXY"
-    type: fallback
-    url: "https://www.baidu.com/generate_204"
+  # 手动选择节点
+  - name: "PROXY"
+    type: select
+    include-all: true
+    url: "https://www.gstatic.com/generate_204"
     interval: 300
     timeout: 5000
+
+  # 自动测速选延迟最低
+  - name: "AUTO"
+    type: url-test
+    include-all: true
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    timeout: 5000
+    tolerance: 50
+
+  # 流媒体
+  - name: "STREAMING"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+      - DIRECT
+
+  # AI 服务
+  - name: "AI"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+
+  # Telegram
+  - name: "TELEGRAM"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+
+  # 谷歌
+  - name: "GOOGLE"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+
+  # 微软
+  - name: "MICROSOFT"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+      - DIRECT
+
+  # 苹果
+  - name: "APPLE"
+    type: select
     proxies:
       - DIRECT
       - PROXY
 
-# Geo数据库配置，使用fastly CDN
+  # 国外其他
+  - name: "GLOBAL"
+    type: select
+    proxies:
+      - PROXY
+      - AUTO
+      - DIRECT
+
+  # 国内直连
+  - name: "CN"
+    type: select
+    proxies:
+      - DIRECT
+      - PROXY
+
+  # 广告拦截
+  - name: "ADBlock"
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+
+  # 兜底：先直连，5秒失败切代理
+  - name: "DIRECT_THEN_PROXY"
+    type: fallback
+    proxies:
+      - DIRECT
+      - AUTO
+    url: "https://www.baidu.com/generate_204"
+    interval: 300
+    timeout: 5000
+
+# ========== Geo 数据库 ==========
 geodata-mode: true
 geo-auto-update: true
 geo-update-interval: 24
@@ -91,27 +189,80 @@ geox-url:
   geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
 
+# ============================================================
+# 全局分流规则
+# ============================================================
 rules:
-# ========== 1.内网网段（最高优先级） ==========
-- IP-CIDR,192.16.0.0/12,DIRECT,no-resolve
-- IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  # 1. 广告拦截
+  - GEOSITE,category-ads-all,ADBlock
 
-# ========== 2.手动补充国内IP段【防漏网】 ==========
-- IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
-- IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
-- IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,220.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
-- IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
+  # 2. 内网直连
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
 
-# ========== 3.手动补充国内域名后缀【防漏网】 ==========
-- DOMAIN-SUFFIX,cn,DIRECT
+  # 3. 国内 IP 补充
+  - IP-CIDR,223.5.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,111.0.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,180.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,220.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,58.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,61.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,119.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,120.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,121.0.0.0/8,DIRECT,no-resolve
 
-# ========== 4.内置geo库规则 ==========
-- GEOSITE,cn,DIRECT
-- GEOIP,CN,DIRECT
+  # 4. 国内域名
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - GEOSITE,cn,CN
+  - GEOIP,CN,DIRECT
 
-# ========== 剩下所有流量交给 fallback策略组：先直连，5秒失败切代理 ==========
-- MATCH,DIRECT_THEN_PROXY
+  # 5. 特殊服务
+  - GEOSITE,openai,AI
+  - GEOSITE,anthropic,AI
+  - GEOSITE,category-ai-!cn,AI
+  - DOMAIN-SUFFIX,openai.com,AI
+  - DOMAIN-SUFFIX,chatgpt.com,AI
+  - DOMAIN-SUFFIX,claude.ai,AI
+  - DOMAIN-SUFFIX,gemini.google.com,AI
+
+  - GEOSITE,telegram,TELEGRAM
+  - GEOIP,telegram,TELEGRAM,no-resolve
+
+  - GEOSITE,google,GOOGLE
+  - GEOIP,google,GOOGLE,no-resolve
+
+  - GEOSITE,youtube,STREAMING
+  - GEOSITE,netflix,STREAMING
+  - GEOSITE,disney,STREAMING
+  - GEOSITE,bilibili,CN
+  - GEOSITE,spotify,STREAMING
+  - DOMAIN-SUFFIX,netflix.com,STREAMING
+  - DOMAIN-SUFFIX,nflxvideo.net,STREAMING
+  - DOMAIN-SUFFIX,disneyplus.com,STREAMING
+  - DOMAIN-SUFFIX,youtube.com,STREAMING
+  - DOMAIN-SUFFIX,googlevideo.com,STREAMING
+
+  - GEOSITE,microsoft,MICROSOFT
+  - GEOSITE,onedrive,MICROSOFT
+  - DOMAIN-SUFFIX,windowsupdate.com,DIRECT
+
+  - GEOSITE,apple,APPLE
+  - GEOSITE,apple-cn,DIRECT
+  - DOMAIN-SUFFIX,apple.com,APPLE
+  - DOMAIN-SUFFIX,icloud.com,APPLE
+  - DOMAIN-SUFFIX,mzstatic.com,APPLE
+
+  - GEOSITE,github,GLOBAL
+  - DOMAIN-SUFFIX,github.com,GLOBAL
+  - DOMAIN-SUFFIX,githubusercontent.com,GLOBAL
+  - DOMAIN-SUFFIX,githubassets.com,GLOBAL
+
+  - GEOSITE,geolocation-!cn,GLOBAL
+
+  # 6. 兜底
+  - MATCH,DIRECT_THEN_PROXY
